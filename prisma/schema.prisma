@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  username String @unique
+  email    String @unique
+  password String
+  bio      String? @default("")
+
+  login    Int @default(0)
+
+  projects Project[]
+}
+
+model Project {
+  id          String @id @default(uuid())
+  name        String
+  description String? @default("Novo projeto legal")
+  type        String[] // vai ser um array com as classificações
+
+  members     User[]   
+
+  files       File[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  scheduledTo DateTime?
+
+  status      String? @default("Em andamento")
+
+  shares      Share[]
+}
+
+model File {
+  id           String @id @default(uuid())
+  originalName String
+  storagePath  String
+
+  mimeType     String
+  size         Int 
+
+  projectId    String
+  project      Project @relation(fields: [projectId], references: [id])
+
+  createdAt    DateTime @default(now())
+
+}
+
+model Share {
+  id        String @id @default(uuid())
+  token     String @unique
+
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id])
+
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+}
