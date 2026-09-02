@@ -8,21 +8,24 @@ import path from "path"
 const projectFiles= []
 
 const createProject = async (name, members, scheduledTo, status, type, description) => {
-  const project =  await prisma.project.create({
+  const ids = Array.isArray(members) ? members.filter(Boolean) : [];
+
+  const project = await prisma.project.create({
     data: {
       name,
       status: status || "Em andamento",
-      type: type,
-      description, description,
-      scheduledTo: scheduledTo
-        ? new Date(scheduledTo)
-        : null,
-      members: {
-        connect: members.map(id => ({
-          id
-        }))
-      }
-    }
+      type: Array.isArray(type) ? type : [],
+      description: description || "",
+      scheduledTo: scheduledTo ? new Date(scheduledTo) : null,
+      ...(ids.length > 0 && {
+        members: {
+          connect: ids.map((id) => ({ id })),
+        },
+      }),
+    },
+    include: {
+      members: true,
+    },
   });
 
   return project;
@@ -89,15 +92,33 @@ const getProjectByUserId = async (id, userId) => {
 };
 
 const updateProject = async (id, data) => {
+  const updateData = {
+    name: data.name,
+    description: data.description,
+    type: Array.isArray(data.type) ? data.type : [],
+    status: data.status,
+    scheduledTo: data.scheduledTo ? new Date(data.scheduledTo) : null,
+  };
+
+  if (Array.isArray(data.members)) {
+    const memberIds = data.members
+      .map((member) => (typeof member === "string" ? member : member?.id || null))
+      .filter(Boolean);
+
+    if (memberIds.length > 0) {
+      updateData.members = {
+        set: memberIds.map((memberId) => ({ id: memberId })),
+      };
+    }
+  }
+
   return prisma.project.update({
     where: { id },
-    data: {
-      name: data.name,
-      description: data.description,
-      type: data.type,
-      status: data.status,
-      scheduledTo: data.scheduledTo ? new Date(data.scheduledTo) : null
-    }
+    data: updateData,
+    include: {
+      members: true,
+      files: true,
+    },
   });
 };
 

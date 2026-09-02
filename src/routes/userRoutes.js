@@ -4,6 +4,7 @@ import userController from "../controllers/userController.js";
 
 const router = Router();
 
+router.get("/search", userController.searchUserReq);
 router.get("/", userController.getUsersReq);
 router.get("/:id", userController.getUserReq);
 router.post("/", userController.createUserReq);

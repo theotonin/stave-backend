@@ -1,4 +1,12 @@
-import {createUser, getUsers, updateUser, deleteUser, getUser} from"../services/userService.js";
+import {
+  createUser,
+  getUsers,
+  updateUser,
+  deleteUser,
+  getUser,
+  getUserByEmailOrUsername,
+  searchUsersByEmailOrUsername,
+} from "../services/userService.js";
 
 const createUserReq = async (req, res) => {
   try {
@@ -95,12 +103,46 @@ const deleteUserReq = async (req, res) => {
   }
 }
 
+const searchUserReq = async (req, res) => {
+  try {
+    const rawQuery =
+      req.query.emailOrUsername ??
+      req.query.query ??
+      req.query.q ??
+      req.query.username ??
+      req.query.email ??
+      "";
+
+    const searchValue = Array.isArray(rawQuery) ? rawQuery[0] : rawQuery;
+    const normalizedQuery = String(searchValue ?? "").trim();
+
+    if (!normalizedQuery) {
+      return res.status(400).json({
+        message: "Email ou username é obrigatório"
+      });
+    }
+
+    const users = await searchUsersByEmailOrUsername(normalizedQuery);
+
+    return res.status(200).json({
+      message: "Usuários encontrados com sucesso!",
+      users
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Erro ao buscar usuários",
+      error: error.message,
+    });
+  }
+}
+
 export default {
   createUserReq,
   getUsersReq,
   getUserReq,
   updateUserReq,
   deleteUserReq,
+  searchUserReq,
 };
 
 

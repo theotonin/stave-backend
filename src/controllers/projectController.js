@@ -9,7 +9,7 @@ import {
   getProjectsByUserId
 } from "../services/projectService.js";
 
-import { getUser} from"../services/userService.js";
+import { getUser, getUserByEmailOrUsername } from "../services/userService.js";
 
 const createProjectReq = async (req, res) => {
   try {
@@ -103,7 +103,38 @@ const updateProjectReq = async (req, res) => {
       return res.status(404).json({ message: "Projeto não encontrado" });
     }
 
-    const updatedProject = await updateProject(req.params.id, req.body);
+    const normalizedMembers = Array.isArray(req.body.members)
+      ? req.body.members
+          .map((member) => {
+            if (typeof member === "string") return member;
+            if (member && typeof member === "object") return member.id || null;
+            return null;
+          })
+          .filter(Boolean)
+      : [];
+
+    if (normalizedMembers.length > 0) {
+      const invalidMembers = [];
+
+      for (const memberId of normalizedMembers) {
+        const existingMember = await getUser(memberId);
+
+        if (!existingMember) {
+          invalidMembers.push(memberId);
+        }
+      }
+
+      if (invalidMembers.length > 0) {
+        return res.status(400).json({
+          message: `Os seguintes usuários não foram encontrados: ${invalidMembers.join(", ")}`,
+        });
+      }
+    }
+
+    const updatedProject = await updateProject(req.params.id, {
+      ...req.body,
+      members: normalizedMembers,
+    });
 
     res.status(200).json({
       message: "Projeto atualizado com sucesso",

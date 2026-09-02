@@ -46,6 +46,44 @@ const getUserByEmailOrUsername = async (emailOrUsername) =>{
   return user
 }
 
+const searchUsersByEmailOrUsername = async (query) => {
+  const normalizedQuery = String(query ?? "").trim();
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  return prisma.user.findMany({
+    where: {
+      OR: [
+        {
+          email: {
+            contains: normalizedQuery,
+            mode: "insensitive"
+          }
+        },
+        {
+          username: {
+            contains: normalizedQuery,
+            mode: "insensitive"
+          }
+        },
+        {
+          name: {
+            contains: normalizedQuery,
+            mode: "insensitive"
+          }
+        }
+      ]
+    },
+    take: 6,
+    orderBy: [
+      { username: "asc" },
+      { email: "asc" }
+    ]
+  });
+}
+
 const updateUser = async (id, nome, username, email, senha, bio) => {
   const data = {
     name: nome,
@@ -115,6 +153,7 @@ export{
   updateUser,
   deleteUser,
   getUserByEmailOrUsername,
+  searchUsersByEmailOrUsername,
   loginFailure,
   resetLoginFailure,
 };
