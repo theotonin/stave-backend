@@ -1,3 +1,4 @@
+import { serializeProject } from "../utils/projectFinance.js";
 import {
   createProject,
   getProjects,
@@ -15,16 +16,16 @@ const createProjectReq = async (req, res) => {
   try {
     const { name, members, scheduledTo, status, type, description} = req.body;
 
-    const project = await createProject(name, members, scheduledTo, status, type, description);
+    const project = await createProject(name, members, scheduledTo, status, type, description, req.body);
 
     res.status(201).json({
       message: "Projeto criado com sucesso",
-      project
+      project: serializeProject(project)
     });
 
   } catch (error) {
-    res.status(500).json({
-      message: "Erro ao criar projeto",
+    res.status(error.statusCode || 500).json({
+      message: error.statusCode === 400 ? error.message : "Erro ao criar projeto",
       error: error.message
     });
   }
@@ -36,7 +37,7 @@ const getProjectsReq = async (req, res) => {
 
     res.status(200).json({
       message: "Projetos encontrados com sucesso",
-      projects
+      projects: projects.map(serializeProject)
     });
 
   } catch (error) {
@@ -52,12 +53,12 @@ const getProjectsByUserIdReq = async (req,res) =>{
     const userId = req.headers.authorization;
 
     const user = await getUser(userId);
-    
+
     const projects = await getProjectsByUserId(userId);
 
     res.status(200).json({
       message: "Projetos encontrados com sucesso",
-      projects, 
+      projects: projects.map(serializeProject),
       user,
     });
 
@@ -82,7 +83,7 @@ const getProjectReq = async (req, res) =>{
 
     res.status(200).json({
       message: "Projeto encontrado com sucesso",
-      project
+      project: serializeProject(project)
     });
   } catch (error) {
     res.status(500).json({
@@ -138,11 +139,11 @@ const updateProjectReq = async (req, res) => {
 
     res.status(200).json({
       message: "Projeto atualizado com sucesso",
-      project: updatedProject
+      project: serializeProject(updatedProject)
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Erro ao atualizar projeto",
+    res.status(error.statusCode || 500).json({
+      message: error.statusCode === 400 ? error.message : "Erro ao atualizar projeto",
       error: error.message
     });
   }

@@ -1,3 +1,4 @@
+import { normalizeProjectFinance, parseProjectDate } from "../utils/projectFinance.js";
 import prisma from "../config/database.js";
 import { uploadFile } from "./fileService.js";
 
@@ -7,16 +8,17 @@ import path from "path"
 
 const projectFiles= []
 
-const createProject = async (name, members, scheduledTo, status, type, description) => {
+const createProject = async (name, members, scheduledTo, status, type, description, finance = {}) => {
   const ids = Array.isArray(members) ? members.filter(Boolean) : [];
 
   const project = await prisma.project.create({
     data: {
+      ...normalizeProjectFinance(finance),
       name,
       status: status || "Em andamento",
       type: Array.isArray(type) ? type : [],
       description: description || "",
-      scheduledTo: scheduledTo ? new Date(scheduledTo) : null,
+      scheduledTo: parseProjectDate(scheduledTo ?? null, "Data de entrega"),
       ...(ids.length > 0 && {
         members: {
           connect: ids.map((id) => ({ id })),
@@ -93,11 +95,12 @@ const getProjectByUserId = async (id, userId) => {
 
 const updateProject = async (id, data) => {
   const updateData = {
+    ...normalizeProjectFinance(data),
     name: data.name,
     description: data.description,
     type: Array.isArray(data.type) ? data.type : [],
     status: data.status,
-    scheduledTo: data.scheduledTo ? new Date(data.scheduledTo) : null,
+    ...(data.scheduledTo !== undefined && { scheduledTo: parseProjectDate(data.scheduledTo, "Data de entrega") }),
   };
 
   if (Array.isArray(data.members)) {
