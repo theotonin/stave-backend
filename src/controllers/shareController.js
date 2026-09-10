@@ -11,7 +11,7 @@ const createShareReq = async (req, res) => {
     const token = req.token
 
 
-    const projetoPertence = projeto.members.some(member => member.id === token);  
+    const projetoPertence = projeto?.members.some(member => member.id === token);
 
     if(!projetoPertence){
       return res.status(403).json({
@@ -23,7 +23,7 @@ const createShareReq = async (req, res) => {
 
     res.status(201).json({
       message: "Compartilhamento criado com sucesso",
-      share 
+      share
     });
 
   } catch (error) {

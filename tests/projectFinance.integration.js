@@ -1,3 +1,4 @@
+import { createSession } from "../src/services/sessionService.js";
 // Executar explicitamente com npm run test:integration.
 // Cria dados identificados para este teste no DATABASE_URL e os remove no finally.
 import 'dotenv/config';
@@ -11,12 +12,13 @@ import prisma from '../src/config/database.js';
 test('API persiste orçamento/pagamento e preserva campos em outros PUTs', {timeout:120000}, async () => {
   const userId=randomUUID();
   const projectIds=[];
+  let sessionToken;
   const server=app.listen(0,'127.0.0.1');
   await once(server,'listening');
   const base=`http://127.0.0.1:${server.address().port}`;
   async function request(path, method='GET', body) {
     const response=await fetch(`${base}${path}`,{
-      method,headers:{'Content-Type':'application/json',Authorization:userId},
+      method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${sessionToken}`},
       ...(body !== undefined && {body:JSON.stringify(body)}),
     });
     return {status:response.status,data:await response.json()};
@@ -27,6 +29,7 @@ test('API persiste orçamento/pagamento e preserva campos em outros PUTs', {time
   }
   try {
     await prisma.user.create({data:{id:userId,name:'Teste financeiro automatizado',username:`test-${userId}`,email:`${userId}@example.invalid`,password:randomUUID()}});
+    sessionToken=await createSession(userId);
     const input={name:`Teste financeiro ${userId}`,members:[userId],type:['Composição'],status:'Em andamento',description:'Fixture temporária',scheduledTo:'2026-10-01T21:45:00.000Z'};
     const created=await request('/projects','POST',{...input,...finance});
     if(created.data.project?.id) projectIds.push(created.data.project.id);

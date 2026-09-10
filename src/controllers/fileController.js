@@ -39,7 +39,7 @@ const downloadFileReq = async (req, res) => {
 
 const getFilesReq = async (req, res) => {
     try {
-        const files = await getFiles();
+        const files = await getFiles(req.userId);
 
         res.json({
             message: "Files encontrados",

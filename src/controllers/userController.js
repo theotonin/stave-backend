@@ -1,7 +1,9 @@
+import { publicUser } from "../services/sessionService.js";
 import {
   createUser,
   getUsers,
   updateUser,
+  changePassword,
   deleteUser,
   getUser,
   getUserByEmailOrUsername,
@@ -14,15 +16,14 @@ const createUserReq = async (req, res) => {
 
     if(senha !== confirmarSenha) {
     return res.status(400).json({ 
-      message: `${senha} e ${confirmarSenha} estão diferentes`, 
-      error: error.message });
+      message: "As senhas não coincidem." });
     }
 
     const user = await createUser(nome, username, email, senha);
 
     res.status(201).json({
       message: "Usuario criado com sucesso",
-      user});
+      user: publicUser(user)});
   } catch (error) {
     res.status(500).json({
       message: `Algo deu errado`,
@@ -37,7 +38,7 @@ const getUsersReq = async (req, res) => {
 
     res.status(200).json({
       message: "Usuários encontrados com sucesso!",
-      users,
+      users: users.map(publicUser),
     });
   } catch (error) {
     res.status(500).json({
@@ -54,7 +55,7 @@ const getUserReq = async (req, res) =>{
 
     res.status(200).json({
       message: "Usuário encontrado com sucesso!",
-      user
+      user: publicUser(user)
     })
 
   } catch (error) {
@@ -69,13 +70,13 @@ const getUserReq = async (req, res) =>{
 const updateUserReq = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, username, email, senha, bio } = req.body;
+    const { nome, username, email, bio } = req.body;
 
-    const user = await updateUser(id, nome, username, email, senha, bio);
+    const user = await updateUser(id, nome, username, email, bio);
 
     res.status(200).json({
       message: "Usuário atualizado com sucesso!",
-      user,
+      user: publicUser(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -85,6 +86,28 @@ const updateUserReq = async (req, res) => {
   }
 }
 
+const changePasswordReq = async (req, res) => {
+  try {
+    const { senhaAtual, novaSenha, confirmarNovaSenha } = req.body;
+    const user = await changePassword(
+      req.params.id,
+      senhaAtual,
+      novaSenha,
+      confirmarNovaSenha,
+      req.sessionToken,
+    );
+
+    res.status(200).json({
+      message: "Senha alterada com sucesso. As outras sessões foram encerradas.",
+      user: publicUser(user),
+    });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.statusCode ? error.message : "Erro ao alterar senha.",
+    });
+  }
+};
+
 const deleteUserReq = async (req, res) => {
   try {
     const { id } = req.params;
@@ -93,7 +116,7 @@ const deleteUserReq = async (req, res) => {
 
     res.status(200).json({
       message: "Usuário deletado com sucesso!",
-      userDeleted,
+      userDeleted: publicUser(userDeleted),
     });
   } catch (error) {
     res.status(500).json({
@@ -126,7 +149,7 @@ const searchUserReq = async (req, res) => {
 
     return res.status(200).json({
       message: "Usuários encontrados com sucesso!",
-      users
+      users: users.map(publicUser)
     });
   } catch (error) {
     res.status(500).json({
@@ -141,6 +164,7 @@ export default {
   getUsersReq,
   getUserReq,
   updateUserReq,
+  changePasswordReq,
   deleteUserReq,
   searchUserReq,
 };

@@ -69,3 +69,41 @@ O frontend usa os projetos retornados por `GET /projects/userProjects` para calc
 - Pagamento: apenas no dia cadastrado, inclusive se o projeto estiver concluído.
 
 Os avisos são calculados ao abrir a aplicação, navegar, abrir o painel, voltar à aba e a cada minuto. São lembretes atuais no site, sem tabela de histórico ou agendamento de mensagens externas. Como não há um campo de quitação, o valor do pagamento não suprime o lembrete da data.
+
+## Assistente musical e sessões
+
+`POST /login` agora retorna `{ user, token }`, sem senha no objeto público. Envie `Authorization: Bearer <token>` nas requisições autenticadas; IDs de usuário isolados deixaram de ser aceitos. `POST /login/logout` revoga a sessão, que expira em sete dias. Projetos/arquivos exigem participação e o perfil só pode ser alterado pelo próprio usuário.
+
+`src/assistant/` reúne conversa, pesquisa externa, propostas e processamento de áudio. Configure `GEMINI_API_KEY` e `GEMINI_MODEL` somente no `.env` do servidor para habilitar a conversa com Gemini. A busca geral na web está desativada; a conversa pesquisa referências pelo Internet Archive. Sem esses valores, consultas guiadas e pesquisa no Internet Archive funcionam. `DEMUCS_PYTHON` aponta ao Python isolado com Demucs para habilitar voz/acompanhamento. `.env.example` contém apenas exemplos, sem credenciais reais.
+
+### Deploy da API
+
+Use `backend/` como diretório do serviço. O comando de build é `npm ci && npm run build` e o comando de início é `npm start`. Configure `DATABASE_URL`, `PORT`, `GEMINI_API_KEY`, `GEMINI_MODEL` e, se houver Demucs instalado no servidor, `DEMUCS_PYTHON`. Em um banco existente, aplique os SQLs aditivos na ordem documentada antes de iniciar a API. O diretório `uploads/` precisa de armazenamento persistente; sem um disco persistente, arquivos enviados e resultados podem desaparecer quando o serviço reiniciar ou for publicado novamente. Use uma única instância da API enquanto o worker da fila estiver habilitado.
+
+Em um banco existente já atualizado com finanças e datas, aplique uma vez `prisma/changes/20260909_assistant.sql` e gere o cliente. O SQL já foi aplicado neste workspace. Em banco novo de desenvolvimento, `prisma db push` usa o schema completo. Não há execução automática desses SQLs por `prisma migrate deploy`.
+
+| Endpoint sob `/assistant` | Uso |
+| --- | --- |
+| `GET /capabilities` | Capacidades configuradas |
+| `GET/POST /conversations` | Histórico privado e criação de conversa |
+| `GET /conversations/:id` | Mensagens e propostas do solicitante |
+| `POST /conversations/:id/messages` | `{ message }`; conversa com ferramentas controladas |
+| `POST /search` | `{ query, source: "archive" ou "web" }`; texto e fontes |
+| `POST /reference-files` | `{ url }` de um item do Internet Archive; lista áudios suportados |
+| `GET /projects/:id` | Detalhes, arquivos e referências do projeto acessível |
+| `GET/POST /actions` | Pendências ou proposta `{ projectId, kind, payload, conversationId? }` |
+| `POST /actions/:id/decision` | `{ confirm: true ou false }`; aplica ou rejeita uma vez |
+| `GET /jobs` | Estado das tarefas do solicitante |
+| `GET /jobs/:id/download` | ZIP dos resultados ainda presentes no projeto |
+
+Ações permitidas: `update_project`, `save_reference`, `rename_file`, `import_audio`, `separate_audio`. Uma proposta não aplica alterações. Confirmação repetida retorna a decisão anterior; dados alterados desde a proposta geram HTTP 409. O modelo não dispõe de ferramenta para confirmar ações. Referências e arquivos ficam no projeto; conversa e controle da tarefa são privados.
+
+O servidor inicia um consumidor da fila `AssistantJob` a cada cinco segundos. Use apenas uma instância neste estágio. Importações aceitam áudio público do Archive até 50 MB; separação preserva o original e cria dois WAVs com `sourceFileId`. Um reinício torna tarefas em execução falhas explícitas. O arquivo original e o armazenamento de resultados precisam estar disponíveis no disco da API.
+
+```bash
+npm test
+npm run test:integration
+npm run test:assistant
+```
+
+O teste da assistente usa registros temporários no banco de desenvolvimento e simula apenas o provedor externo ao testar o ciclo de ferramentas; não consome créditos de IA. Para configuração de áudio, limites e apresentação, veja `docs/assistente-guia.md` no repositório agregador Stave. Busca, importação, player, separação real e ZIP também foram verificados no navegador no workspace.

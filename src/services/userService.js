@@ -1,5 +1,15 @@
 import bcrypt from "bcrypt";
 import prisma from "../config/database.js";
+import { tokenHash } from "./sessionService.js";
+
+function validateNewPassword(password) {
+  if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+    throw Object.assign(new Error("A nova senha deve ter entre 8 e 128 caracteres."), {statusCode:400});
+  }
+  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+    throw Object.assign(new Error("A nova senha deve conter letra maiúscula, letra minúscula e número."), {statusCode:400});
+  }
+}
 
 const createUser = async (nome, username, email, senha) => {
   const senhaHash = await bcrypt.hash(senha, 10);
@@ -84,7 +94,7 @@ const searchUsersByEmailOrUsername = async (query) => {
   });
 }
 
-const updateUser = async (id, nome, username, email, senha, bio) => {
+const updateUser = async (id, nome, username, email, bio) => {
   const data = {
     name: nome,
     username,
@@ -92,16 +102,39 @@ const updateUser = async (id, nome, username, email, senha, bio) => {
     bio,
   };
 
-  if (senha && senha.trim()) {
-    data.password = await bcrypt.hash(senha, 10);
-  }
-
   const user = await prisma.user.update({
     where: { id },
     data,
   });
 
   return user;
+}
+
+const changePassword = async (id, currentPassword, newPassword, confirmation, currentToken) => {
+  if (typeof currentPassword !== "string" || !currentPassword) {
+    throw Object.assign(new Error("Informe sua senha atual."), {statusCode:400});
+  }
+  validateNewPassword(newPassword);
+  if (newPassword !== confirmation) {
+    throw Object.assign(new Error("A confirmação da nova senha não coincide."), {statusCode:400});
+  }
+
+  const user = await prisma.user.findUnique({where:{id}});
+  if (!user || !await bcrypt.compare(currentPassword,user.password)) {
+    throw Object.assign(new Error("A senha atual está incorreta."), {statusCode:401});
+  }
+  if (await bcrypt.compare(newPassword,user.password)) {
+    throw Object.assign(new Error("A nova senha deve ser diferente da senha atual."), {statusCode:400});
+  }
+
+  const password = await bcrypt.hash(newPassword, 12);
+  return prisma.$transaction(async db => {
+    const updatedUser = await db.user.update({where:{id},data:{password}});
+    await db.session.deleteMany({
+      where: {userId:id,...(currentToken&&{tokenHash:{not:tokenHash(currentToken)}})},
+    });
+    return updatedUser;
+  });
 }
 
 const loginFailure = async (emailOrUsername) => {
@@ -151,6 +184,7 @@ export{
   getUsers,
   getUser,
   updateUser,
+  changePassword,
   deleteUser,
   getUserByEmailOrUsername,
   searchUsersByEmailOrUsername,

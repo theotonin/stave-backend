@@ -1,3 +1,4 @@
+import { createSession, revokeSession, publicUser } from "../services/sessionService.js";
 import { getUserByEmailOrUsername, loginFailure, resetLoginFailure } from "../services/userService.js";
 import bcrypt from "bcrypt"
 import crypto from "crypto"
@@ -23,18 +24,19 @@ const loginReq = async (req,res) =>{
     const senhaCorreta = await bcrypt.compare(password, user.password)
 
     if(!senhaCorreta){
-      loginFailure(login);
+      await loginFailure(login);
       
       return res.status(401).json({
         message: `Senha incorreta, agora só possui mais ${2 - user.login} tentativas`
       })
     }
 
-    resetLoginFailure(login)
+    await resetLoginFailure(login)
 
     res.status(200).json({
       message: "Login realizado com sucesso",
-      user,
+      user: publicUser(user),
+      token: await createSession(user.id),
     })
 
   } catch (error) {
@@ -47,6 +49,7 @@ const loginReq = async (req,res) =>{
 
 const exitReq = async (req, res) => {
   try {
+    await revokeSession(req.sessionToken);
     return res.status(200).json({
       message: "Logout realizado com sucesso"
     });

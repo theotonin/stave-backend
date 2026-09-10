@@ -1,3 +1,4 @@
+import { publicUser } from "../services/sessionService.js";
 function invalidField(message) {
   const error = new Error(message);
   error.statusCode = 400;
@@ -42,6 +43,7 @@ export function serializeProject(project) {
   if (!project) return project;
   return {
     ...project,
+    ...(project.members && {members:project.members.map(publicUser)}),
     scheduledTo: project.scheduledTo?.toISOString() ?? null,
     budgetAmount: project.budgetAmount?.toFixed(2) ?? null,
     paymentAmount: project.paymentAmount?.toFixed(2) ?? null,

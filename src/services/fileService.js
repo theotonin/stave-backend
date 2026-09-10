@@ -5,17 +5,24 @@ import path from "path";
 const uploadFile = async (file, projectId) => {
   const { originalname, mimetype, size, path: storagePath } = file;
 
-  const uploadedFile = await prisma.file.create({
-    data: {
-      originalName: originalname,
-      mimeType: mimetype,
-      size,
-      storagePath: `uploads/${file.filename}`,
-      projectId: projectId 
-    },
+  const uploadedFile = await prisma.$transaction(async (db) => {
+    const createdFile = await db.file.create({
+      data: {
+        originalName: originalname,
+        mimeType: mimetype,
+        size,
+        storagePath: `uploads/${file.filename}`,
+        projectId,
+      },
+    });
+
+    await db.project.update({
+      where: { id: projectId },
+      data: { updatedAt: new Date() },
+    });
+
+    return createdFile;
   });
-
-
 
   return uploadedFile;
 }
@@ -37,8 +44,12 @@ const deleteFile = async (fileId) => {
     return null;
   }
 
-  await prisma.file.delete({
-    where: { id: fileId },
+  await prisma.$transaction(async (db) => {
+    await db.file.delete({ where: { id: fileId } });
+    await db.project.update({
+      where: { id: file.projectId },
+      data: { updatedAt: new Date() },
+    });
   });
 
   await fs.unlink(path.resolve(file.storagePath)).catch(() => null);
@@ -46,8 +57,8 @@ const deleteFile = async (fileId) => {
   return file;
 };
 
-const getFiles = async () =>{
-  const files = await prisma.file.findMany({})
+const getFiles = async (userId) =>{
+  const files = await prisma.file.findMany({where:{project:{members:{some:{id:userId}}}}})
 
   return files
 }

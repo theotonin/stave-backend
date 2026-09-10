@@ -1,3 +1,4 @@
+import { publicUser } from "../services/sessionService.js";
 import { serializeProject } from "../utils/projectFinance.js";
 import {
   createProject,
@@ -16,7 +17,7 @@ const createProjectReq = async (req, res) => {
   try {
     const { name, members, scheduledTo, status, type, description} = req.body;
 
-    const project = await createProject(name, members, scheduledTo, status, type, description, req.body);
+    const project = await createProject(name, [...new Set([req.userId, ...(Array.isArray(members) ? members : [])])], scheduledTo, status, type, description, req.body);
 
     res.status(201).json({
       message: "Projeto criado com sucesso",
@@ -33,7 +34,7 @@ const createProjectReq = async (req, res) => {
 
 const getProjectsReq = async (req, res) => {
   try {
-    const projects = await getProjects();
+    const projects = await getProjectsByUserId(req.userId);
 
     res.status(200).json({
       message: "Projetos encontrados com sucesso",
@@ -50,7 +51,7 @@ const getProjectsReq = async (req, res) => {
 
 const getProjectsByUserIdReq = async (req,res) =>{
   try {
-    const userId = req.headers.authorization;
+    const userId = req.userId;
 
     const user = await getUser(userId);
 
@@ -59,7 +60,7 @@ const getProjectsByUserIdReq = async (req,res) =>{
     res.status(200).json({
       message: "Projetos encontrados com sucesso",
       projects: projects.map(serializeProject),
-      user,
+      user: publicUser(user),
     });
 
   } catch (error) {
@@ -74,7 +75,7 @@ const getProjectReq = async (req, res) =>{
   try {
     const project = await getProjectByUserId(
       req.params.id,
-      req.headers.authorization
+      req.userId
     );
 
     if (!project) {
@@ -97,7 +98,7 @@ const updateProjectReq = async (req, res) => {
   try {
     const project = await getProjectByUserId(
       req.params.id,
-      req.headers.authorization
+      req.userId
     );
 
     if (!project) {
@@ -153,7 +154,7 @@ const deleteProjectReq = async (req, res) => {
   try {
     const project = await getProjectByUserId(
       req.params.id,
-      req.headers.authorization
+      req.userId
     );
 
     if (!project) {
@@ -173,7 +174,7 @@ const deleteProjectReq = async (req, res) => {
 
 const downloadProjectReq = async (req, res) => {
   try {
-    const project = await getProject(req.params.id);
+    const project = await getProjectByUserId(req.params.id, req.userId);
 
     if (!project) {
       return res.status(404).json({

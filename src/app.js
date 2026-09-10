@@ -1,3 +1,4 @@
+import assistantRoutes from "./assistant/routes.js";
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
@@ -19,4 +20,9 @@ app.use("/projects", projectRoutes);
 app.use("/shares", shareRoutes);
 app.use("/login", loginRoutes)
 
+app.use("/assistant", assistantRoutes);
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  res.status(error.statusCode || 500).json({message:error.statusCode ? error.message : "Não foi possível concluir a operação."});
+});
 export default app;

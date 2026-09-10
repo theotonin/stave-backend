@@ -17,6 +17,11 @@ model User {
 
   login    Int @default(0)
 
+  sessions Session[]
+  conversations AssistantConversation[]
+  actions AssistantAction[]
+  jobs AssistantJob[]
+
   projects Project[]
 }
 
@@ -40,6 +45,11 @@ model Project {
 
   status      String? @default("Em andamento")
 
+  conversations AssistantConversation[]
+  actions AssistantAction[]
+  references ProjectReference[]
+  jobs AssistantJob[]
+
   shares      Share[]
 }
 
@@ -47,6 +57,11 @@ model File {
   id           String @id @default(uuid())
   originalName String
   storagePath  String
+  sourceUrl String?
+  sourceFileId String?
+  sourceFile File? @relation("DerivedFiles", fields: [sourceFileId], references: [id], onDelete: SetNull)
+  derivedFiles File[] @relation("DerivedFiles")
+  part String?
 
   mimeType     String
   size         Int 
@@ -67,4 +82,82 @@ model Share {
 
   expiresAt DateTime?
   createdAt DateTime  @default(now())
+}
+
+
+model Session {
+  id String @id @default(uuid())
+  tokenHash String @unique
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model AssistantConversation {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title String
+  messages AssistantMessage[]
+  actions AssistantAction[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AssistantMessage {
+  id String @id @default(uuid())
+  conversationId String
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role String
+  content String
+  sources Json?
+  createdAt DateTime @default(now())
+}
+
+model AssistantAction {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation AssistantConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind String
+  summary String
+  payload Json
+  snapshot String
+  status String @default("pending")
+  result Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectReference {
+  id String @id @default(uuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title String
+  url String
+  author String?
+  notes String @default("")
+  createdAt DateTime @default(now())
+  @@unique([projectId, url])
+}
+
+model AssistantJob {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind String
+  payload Json
+  status String @default("queued")
+  outputs Json?
+  error String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

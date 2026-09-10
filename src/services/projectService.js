@@ -71,6 +71,7 @@ const getProject = async (id) =>{
         },
         include: {
           files: true,
+          references: true,
           members: true
         }
     })
@@ -88,7 +89,8 @@ const getProjectByUserId = async (id, userId) => {
     },
     include: {
       members: true,
-      files: true
+      files: true,
+      references: true
     }
   });
 };
@@ -121,6 +123,7 @@ const updateProject = async (id, data) => {
     include: {
       members: true,
       files: true,
+          references: true,
     },
   });
 };

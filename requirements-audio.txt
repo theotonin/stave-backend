@@ -1,0 +1,3 @@
+# Instale primeiro torch==2.14.0 pelo índice CPU indicado no guia.
+demucs==4.1.0
+numpy==2.5.3
